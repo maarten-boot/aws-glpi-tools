@@ -70,9 +70,9 @@ main() {
 		while read name
 		do
 			s3_get_bucket_encryption "$profile" "$name" | grep -q ':' || {
-                echo "## $name has no default encryption"
-                s3_put_bucket_encryption_default "$profile" "$name"
-            }
+                		echo "## $name has no default encryption"
+                		s3_put_bucket_encryption_default "$profile" "$name"
+            		}
 		done
 	done
 }
