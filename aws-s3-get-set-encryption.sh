@@ -1,22 +1,30 @@
 #! /bin/bash
 
-get_profiles()
-{
-	cat <<! |
-	account-prod 		aws-prod
-	account-dev 		aws-dev
-	account-marketplace 	aws-marketplace
-!
-	awk '
-	/^[ \t]*$/ { next }
-	/^[ \t]*#/ { next }
-	/^[ \t]*;/ { next }
-	{ print $1 }
-	'
+THIS=$( basename "$0" ".sh" )
+DATETIME=$( date "+%Y-%m-%d %H:%M:%S" )
+
+# //////////////////////////////////
+# //////////////////////////////////
+
+WITH_EMAIL="1"
+WITH_UPDATE="0"
+
+MAILTO="aws-glpi-reports@somedomain.faraway"
+
+TMPDIR="./tmp"
+[ ! -d "$TMPDIR" ] && {
+    mkdir "$TMPDIR"
 }
 
+# //////////////////////////////////
+# //////////////////////////////////
 
-## s3
+LOGFILE="/tmp/$THIS.log"
+PATH=.:$PATH export PATH
+
+# //////////////////////////////////
+# //////////////////////////////////
+
 
 s3_get_all_bucket_names() {
 
@@ -61,7 +69,7 @@ s3_put_bucket_encryption_default() {
 }
 
 main() {
-	get_profiles |
+	aws-profiles-get.sh |
 	while read AWS_PROFILE LABEL
 	do
 		local profile="$AWS_PROFILE"
@@ -70,12 +78,21 @@ main() {
 		while read name
 		do
 			s3_get_bucket_encryption "$profile" "$name" | grep -q ':' || {
-                		echo "## $name has no default encryption"
-                		s3_put_bucket_encryption_default "$profile" "$name"
-            		}
+                echo "## $name has no default encryption"
+                s3_put_bucket_encryption_default "$profile" "$name"
+            }
 		done
 	done
 }
 
-main 2>/tmp/2 |
-tee out
+main 2>/tmp/"$THIS.2" |
+tee "$LOGFILE"
+
+[ "$WITH_EMAIL" = "1" ] && {
+    [ -s "$LOGFILE" ] && {
+        cat "$LOGFILE" |
+        mailx -s "$LOGFILE" $MAILTO
+
+        exit 0
+    }
+}
